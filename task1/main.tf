@@ -5,6 +5,7 @@ resource "digitalocean_vpc" "exam_vpc" {
   ip_range = "10.10.10.0/24" # Діапазон IP-адрес [cite: 8]
 }
 
+
 # Віртуальна машина (Node)
 resource "digitalocean_droplet" "exam_node" {
   name     = "${var.last_name}-node" 
