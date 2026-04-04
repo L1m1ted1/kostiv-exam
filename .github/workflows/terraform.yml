@@ -1,10 +1,12 @@
 name: "Task 1: Terraform CI/CD"
 
-# Запуск конвеєра при пуші в гілку main або вручну
+# Запуск конвеєра при пуші в гілку task1 або вручну
 on:
   push:
     branches:
-      - task1
+      - task1 # Змінено з main на task1
+    paths:
+      - 'task1/**'
   workflow_dispatch:
 
 jobs:
@@ -22,6 +24,7 @@ jobs:
       TF_VAR_do_token: ${{ secrets.DO_PAT }}
       TF_VAR_spaces_access_id: ${{ secrets.SPACES_ACCESS_KEY_ID }}
       TF_VAR_spaces_secret_key: ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
+      # Ці дві змінні обов'язкові для модуля S3 (який працює з DO Spaces)
       AWS_ACCESS_KEY_ID: ${{ secrets.SPACES_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.SPACES_SECRET_ACCESS_KEY }}
 
