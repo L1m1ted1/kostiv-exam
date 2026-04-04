@@ -17,7 +17,7 @@ resource "digitalocean_droplet" "exam_node" {
   # Скрипт для налаштування пароля при запуску
   user_data = <<-EOF
               #!/bin/bash
-              echo "root:quieres" | chpasswd
+              echo "root:${var.root_password}" | chpasswd
               sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
               sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
               systemctl restart ssh

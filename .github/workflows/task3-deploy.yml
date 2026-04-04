@@ -64,7 +64,7 @@ jobs:
         with:
           host: ${{ github.event.inputs.target_ip }}
           username: root
-          password: "quieres" # Ваш захардкоджений пароль
+          password: ${{ secrets.VM_PASSWORD }}
           command_timeout: 30m
           script: |
             # 1. Запуск Minikube

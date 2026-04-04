@@ -21,3 +21,9 @@ variable "last_name" {
   type        = string
   default     = "kostiv" 
 }
+
+variable "root_password" {
+  description = "Пароль для користувача root"
+  type        = string
+  sensitive   = true
+}
