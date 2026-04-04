@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - task1
-    paths:
-      - 'task1/**'
   workflow_dispatch:
 
 jobs:
