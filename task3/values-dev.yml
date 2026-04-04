@@ -1,0 +1,6 @@
+environment: dev
+image:
+  tag: develop
+service:
+  nodePort: 8002
+replicaCount: 1

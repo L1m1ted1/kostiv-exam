@@ -1,0 +1,6 @@
+environment: release
+image:
+  tag: "1.0.0"
+service:
+  nodePort: 8003
+replicaCount: 2
