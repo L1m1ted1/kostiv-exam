@@ -57,7 +57,7 @@ resource "digitalocean_firewall" "exam_firewall" {
 
 # Сховище для об'єктів (Бакет)
 resource "digitalocean_spaces_bucket" "exam_bucket" {
-  name   = "${var.last_name}-bucket" 
+  name   = "${var.last_name}-bucket-task-1" 
   region = digitalocean_vpc.exam_vpc.region # Регіон ідентичний до VPC [cite: 21]
   # Тип сховища за замовчуванням (додаткові ACL не вказуються) [cite: 20]
 }
