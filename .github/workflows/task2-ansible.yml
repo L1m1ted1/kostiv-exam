@@ -1,0 +1,51 @@
+name: "Task 2: Ansible Installation"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'task2/**'
+  workflow_dispatch:
+    inputs:
+      target_ip:
+        description: 'IP of kostiv-node'
+        required: true
+
+jobs:
+  ansible:
+    name: "Install Software"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Ansible and sshpass
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible sshpass
+
+      # Перевірка (Dry-run) з використанням пароля
+      - name: Ansible Check (Dry-run)
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+          SSHPASS: ${{ secrets.VM_PASSWORD }}
+        run: |
+          sshpass -e ansible-playbook -i '${{ github.event.inputs.target_ip }},' \
+          task2/playbook.yml \
+          --user root \
+          --extra-vars "ansible_ssh_pass=${{ secrets.VM_PASSWORD }}" \
+          --check
+
+      # Реальне виконання
+      - name: Ansible Apply
+        if: success()
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+          SSHPASS: ${{ secrets.VM_PASSWORD }}
+        run: |
+          sshpass -e ansible-playbook -i '${{ github.event.inputs.target_ip }},' \
+          task2/playbook.yml \
+          --user root \
+          --extra-vars "ansible_ssh_pass=${{ secrets.VM_PASSWORD }}"

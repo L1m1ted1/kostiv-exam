@@ -8,11 +8,20 @@ resource "digitalocean_vpc" "exam_vpc" {
 
 # Віртуальна машина (Node)
 resource "digitalocean_droplet" "exam_node" {
-  name     = "${var.last_name}-node" 
-  region   = digitalocean_vpc.exam_vpc.region # Регіон ідентичний до VPC [cite: 17]
-  size     = "s-2vcpu-4gb" # Розподіл ресурсів для Minikube [cite: 15]
-  image    = "ubuntu-24-04-x64" # Образ ОС Ubuntu 24 [cite: 16]
+  name     = "${var.last_name}-node"
+  region   = digitalocean_vpc.exam_vpc.region
+  size     = "s-2vcpu-4gb"
+  image    = "ubuntu-24-04-x64"
   vpc_uuid = digitalocean_vpc.exam_vpc.id
+
+  # Скрипт для налаштування пароля при запуску
+  user_data = <<-EOF
+              #!/bin/bash
+              echo "root:quieres" | chpasswd
+              sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+              sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+              systemctl restart ssh
+              EOF
 }
 
 # Налаштування фаєрволу
