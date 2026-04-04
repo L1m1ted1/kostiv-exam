@@ -1,40 +1,77 @@
 ---
-- name: Install K8s, Minikube and Helm
+- name: "Task 2: Install Kubernetes Environment (Minikube, Helm, Kubectl)"
   hosts: all
   become: yes
+  vars:
+    # Версія Helm (можна залишити останню через скрипт)
+    minikube_version: "latest"
+
   tasks:
-    - name: Update apt cache
+    - name: Update apt and install base dependencies
       apt:
         update_cache: yes
-
-    - name: Install dependencies
-      apt:
         name:
           - curl
           - apt-transport-https
-          - virtualbox
+          - ca-certificates
+          - gnupg
+          - lsb-release
           - conntrack
         state: present
 
-    - name: Install Docker (Runtime for Minikube)
+    - name: Install Docker Engine (Runtime for Minikube)
       apt:
         name: docker.io
         state: present
 
-    - name: Download Minikube
+    - name: Ensure Docker service is started and enabled
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add root user to docker group
+      user:
+        name: root
+        groups: docker
+        append: yes
+
+    - name: Download and Install Minikube
       get_url:
-        url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        url: "https://storage.googleapis.com/minikube/releases/{{ minikube_version }}/minikube-linux-amd64"
         dest: /usr/local/bin/minikube
         mode: '0755'
 
-    - name: Install Helm
+    - name: Get latest stable kubectl version
+      uri:
+        url: https://dl.k8s.io/release/stable.txt
+        return_content: yes
+      register: kubectl_version
+
+    - name: Download and Install kubectl
+      get_url:
+        url: "https://dl.k8s.io/release/{{ kubectl_version.content | trim }}/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
+
+    - name: Install Helm 3 via official script
       shell: |
         curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
       args:
         creates: /usr/local/bin/helm
 
-    - name: Install kubectl
-      get_url:
-        url: "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-        dest: /usr/local/bin/kubectl
-        mode: '0755'
+    - name: Configure Minikube to use Docker driver by default
+      command: minikube config set driver docker
+      become_user: root
+
+    - name: Verify installations
+      shell: |
+        docker --version
+        minikube version
+        kubectl version --client
+        helm version
+      register: versions_output
+
+    - name: Show installed versions
+      debug:
+        msg: "{{ versions_output.stdout_lines }}"
