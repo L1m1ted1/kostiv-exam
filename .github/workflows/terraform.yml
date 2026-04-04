@@ -4,7 +4,7 @@ name: "Task 1: Terraform CI/CD"
 on:
   push:
     branches:
-      - task1 # Змінено з main на task1
+      - main
     paths:
       - 'task1/**'
   workflow_dispatch:
