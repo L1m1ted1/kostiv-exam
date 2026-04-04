@@ -4,20 +4,25 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'task3/**'
+  # Запуск вручну з вказуванням IP-адреси
   workflow_dispatch:
+    inputs:
+      target_ip:
+        description: 'IP address of the target server (kostiv-node)'
+        required: true
+        default: ''
 
 jobs:
   build-and-push:
+    name: "Build Docker Images"
     runs-on: ubuntu-latest
     steps:
-      # 1. Клонуємо репозиторій з кодом застосунку (методичка)
-      - name: Checkout App Code
+      # 1. Беремо код з репозиторію методички для збірки образу
+      - name: Checkout Application Code
         uses: actions/checkout@v4
         with:
           repository: 'YulianSalo/devops-exam-pt2'
-          ref: 'develop' # або інша гілка, де лежить код
+          ref: 'main'
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -25,8 +30,8 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 2. Збірка образів згідно з вимогами (develop та 1.0.0)
-      - name: Build and Push Images
+      # 2. Збираємо образ і тегуємо його двома тегами (develop та 1.0.0)
+      - name: Build and Push Docker Images
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -36,35 +41,57 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/kostiv-app:1.0.0
 
   deploy:
+    name: "Deploy to Minikube"
     needs: build-and-push
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
+          # Налаштування для DEV середовища
           - env: dev
             port: 8002
-            file: values-dev.yaml
+            values_file: values-dev.yaml
+            image_tag: develop
+          # Налаштування для RELEASE середовища (використовуємо values-prod.yaml з репо)
           - env: release
             port: 8003
-            file: values-release.yaml
+            values_file: values-prod.yaml 
+            image_tag: "1.0.0"
     
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to Minikube via SSH
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.VM_IP }}
+          host: ${{ github.event.inputs.target_ip }}
           username: root
-          password: ${{ secrets.VM_PASSWORD }}
+          password: "quieres" # Ваш захардкоджений пароль
+          command_timeout: 30m
           script: |
-            # Перевірка (Dry-run) для середовища ${{ matrix.env }}
-            helm upgrade --install my-app-${{ matrix.env }} ./task3/my-app \
-              -f ./task3/${{ matrix.file }} \
+            # 1. Запуск Minikube
+            if ! minikube status | grep -q "Running"; then
+              minikube start --driver=docker
+            fi
+
+            # 2. Завантаження Helm-чарту з методички БЕЗПОСЕРЕДНЬО НА СЕРВЕР
+            # Видаляємо стару папку, якщо вона є, щоб завжди мати свіжий код
+            rm -rf devops-exam-pt2
+            git clone https://github.com/YulianSalo/devops-exam-pt2.git
+            cd devops-exam-pt2/helm-charts-hello-world
+
+            # 3. ПЕРЕВІРКА (Dry-run)
+            echo "--- STARTING DRY-RUN FOR ${{ matrix.env }} ---"
+            helm upgrade --install my-app-${{ matrix.env }} . \
+              -f ./${{ matrix.values_file }} \
+              --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/kostiv-app \
+              --set image.tag=${{ matrix.image_tag }} \
+              --set service.nodePort=${{ matrix.port }} \
               --dry-run --debug
 
-            # Реальне розгортання
-            helm upgrade --install my-app-${{ matrix.env }} ./task3/my-app \
-              -f ./task3/${{ matrix.file }} \
+            # 4. РЕАЛЬНЕ РОЗГОРТАННЯ
+            echo "--- STARTING REAL DEPLOY FOR ${{ matrix.env }} ---"
+            helm upgrade --install my-app-${{ matrix.env }} . \
+              -f ./${{ matrix.values_file }} \
+              --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/kostiv-app \
+              --set image.tag=${{ matrix.image_tag }} \
               --set service.nodePort=${{ matrix.port }} \
               --wait
