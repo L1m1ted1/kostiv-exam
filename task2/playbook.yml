@@ -51,6 +51,7 @@
         url: https://dl.k8s.io/release/stable.txt
         return_content: yes
       register: kubectl_version
+      check_mode: no
 
     - name: Download and Install kubectl
       get_url:
