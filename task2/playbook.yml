@@ -31,12 +31,14 @@
         name: docker
         state: started
         enabled: yes
+      ignore_errors: "{{ ansible_check_mode }}"
 
     - name: Add root user to docker group
       user:
         name: root
         groups: docker
         append: yes
+      ignore_errors: "{{ ansible_check_mode }}"
 
     - name: Download and Install Minikube
       get_url:
@@ -65,6 +67,7 @@
     - name: Configure Minikube to use Docker driver by default
       command: minikube config set driver docker
       become_user: root
+      ignore_errors: "{{ ansible_check_mode }}"
 
     - name: Start Minikube to initialize cluster
       shell: |
@@ -98,6 +101,7 @@
         state: restarted
         enabled: yes
         daemon_reload: yes
+      ignore_errors: "{{ ansible_check_mode }}"
 
     - name: Verify installations
       shell: |
