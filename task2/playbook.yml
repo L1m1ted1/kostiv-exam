@@ -17,6 +17,7 @@
           - gnupg
           - lsb-release
           - conntrack
+          - git
         state: present
 
     - name: Install Docker Engine (Runtime for Minikube)
@@ -65,6 +66,39 @@
       command: minikube config set driver docker
       become_user: root
 
+    - name: Start Minikube to initialize cluster
+      shell: |
+        if ! minikube status | grep -q "Running"; then
+          minikube start --driver=docker --force
+        fi
+      become_user: root
+      register: minikube_start
+      changed_when: "minikube_start.stdout is defined and 'Done! kubectl is now configured' in minikube_start.stdout"
+
+    - name: Install kubectl proxy systemd service (for "Proxying to Minikube" requirement)
+      copy:
+        dest: /etc/systemd/system/kubectl-proxy.service
+        content: |
+          [Unit]
+          Description=Kubectl Proxy
+          After=network.target
+
+          [Service]
+          Environment="KUBECONFIG=/root/.kube/config"
+          ExecStart=/usr/local/bin/kubectl proxy --address='0.0.0.0' --port=8001 --accept-hosts='.*'
+          Restart=always
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Start and enable kubectl proxy
+      systemd:
+        name: kubectl-proxy
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+
     - name: Verify installations
       shell: |
         docker --version
@@ -72,7 +106,8 @@
         kubectl version --client
         helm version
       register: versions_output
+      check_mode: no
 
     - name: Show installed versions
-      debug:
+      debug:         
         msg: "{{ versions_output.stdout_lines }}"

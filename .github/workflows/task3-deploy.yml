@@ -50,15 +50,27 @@ jobs:
           # Налаштування для DEV середовища
           - env: dev
             port: 8002
-            values_file: values-dev.yaml
+            values_file: values-dev.yml
             image_tag: develop
-          # Налаштування для RELEASE середовища (використовуємо values-prod.yaml з репо)
+          # Налаштування для RELEASE середовища
           - env: release
             port: 8003
-            values_file: values-prod.yaml 
+            values_file: values-release.yml 
             image_tag: "1.0.0"
     
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Copy values files to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ github.event.inputs.target_ip }}
+          username: root
+          password: ${{ secrets.VM_PASSWORD }}
+          source: "task3/values-*.yml"
+          target: "/root/"
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@master
         with:
@@ -67,13 +79,15 @@ jobs:
           password: ${{ secrets.VM_PASSWORD }}
           command_timeout: 30m
           script: |
+            # 0. Додавання шляху до виконуваних файлів
+            export PATH=$PATH:/usr/local/bin
+
             # 1. Запуск Minikube
             if ! minikube status | grep -q "Running"; then
               minikube start --driver=docker
             fi
 
-            # 2. Завантаження Helm-чарту з методички БЕЗПОСЕРЕДНЬО НА СЕРВЕР
-            # Видаляємо стару папку, якщо вона є, щоб завжди мати свіжий код
+            # 2. Завантаження Helm-чарту
             rm -rf devops-exam-pt2
             git clone https://github.com/YulianSalo/devops-exam-pt2.git
             cd devops-exam-pt2/helm-charts-hello-world
@@ -81,7 +95,8 @@ jobs:
             # 3. ПЕРЕВІРКА (Dry-run)
             echo "--- STARTING DRY-RUN FOR ${{ matrix.env }} ---"
             helm upgrade --install my-app-${{ matrix.env }} . \
-              -f ./${{ matrix.values_file }} \
+              -f /root/task3/${{ matrix.values_file }} \
+              --namespace ${{ matrix.env }} --create-namespace \
               --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/kostiv-app \
               --set image.tag=${{ matrix.image_tag }} \
               --set service.nodePort=${{ matrix.port }} \
@@ -90,8 +105,14 @@ jobs:
             # 4. РЕАЛЬНЕ РОЗГОРТАННЯ
             echo "--- STARTING REAL DEPLOY FOR ${{ matrix.env }} ---"
             helm upgrade --install my-app-${{ matrix.env }} . \
-              -f ./${{ matrix.values_file }} \
+              -f /root/task3/${{ matrix.values_file }} \
+              --namespace ${{ matrix.env }} --create-namespace \
               --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/kostiv-app \
               --set image.tag=${{ matrix.image_tag }} \
               --set service.nodePort=${{ matrix.port }} \
               --wait
+
+            # 5. Налаштування Port-forwarding для доступу ззовні
+            echo "--- SETTING UP PORT-FORWARDING FOR ${{ matrix.env }} ---"
+            fuser -k ${{ matrix.port }}/tcp || true
+            nohup kubectl port-forward --address 0.0.0.0 service/my-app-${{ matrix.env }} ${{ matrix.port }}:80 -n ${{ matrix.env }} > /root/pf-${{ matrix.env }}.log 2>&1 &
