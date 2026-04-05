@@ -106,8 +106,8 @@
         kubectl version --client
         helm version
       register: versions_output
-      check_mode: no
+      ignore_errors: "{{ ansible_check_mode }}"
 
     - name: Show installed versions
       debug:         
-        msg: "{{ versions_output.stdout_lines }}"
+        msg: "{{ versions_output.stdout_lines | default(['Skipped verification during check mode']) }}"
