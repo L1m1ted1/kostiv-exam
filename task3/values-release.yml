@@ -1,7 +1,12 @@
 environment: release
 image:
   tag: "1.0.0"
+  pullPolicy: IfNotPresent
+  pullSecret: "default"
+  repository: "will-be-overridden-by-set"
 service:
+  type: ClusterIP
+  port: 80
   nodePort: 8003
 replicaCount: 2
 serviceAccount:
@@ -12,3 +17,6 @@ autoscaling:
   enabled: false
 httpRoute:
   enabled: false
+django:
+  debug: "False"
+  allowedHosts: "*"
