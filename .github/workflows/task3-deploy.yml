@@ -79,30 +79,32 @@ jobs:
           password: ${{ secrets.VM_PASSWORD }}
           command_timeout: 30m
           script: |
+            set -e
+            set -x
             # 0. Додавання шляху до виконуваних файлів
             export PATH=$PATH:/usr/local/bin
 
-            # 1. Запуск Minikube
+            # 1. Запуск Minikube (якщо впав)
             if ! minikube status | grep -q "Running"; then
-              minikube start --driver=docker
+              echo "Starting Minikube..."
+              minikube start --driver=docker --force
             fi
 
-            # 2. Завантаження Helm-чарту
+            # 2. Підготовка чарту
+            echo "Preparing helm chart..."
             rm -rf devops-exam-pt2
             git clone https://github.com/YulianSalo/devops-exam-pt2.git
-            cd devops-exam-pt2/helm-charts-hello-world
+            
+            # Перевірка чи каталог існує перед переходом
+            CHART_PATH="devops-exam-pt2/helm-charts-hello-world"
+            if [ ! -d "$CHART_PATH" ]; then
+                echo "ERROR: Directory $CHART_PATH not found!"
+                ls -R devops-exam-pt2
+                exit 1
+            fi
+            cd "$CHART_PATH"
 
-            # 3. ПЕРЕВІРКА (Dry-run)
-            echo "--- STARTING DRY-RUN FOR ${{ matrix.env }} ---"
-            helm upgrade --install my-app-${{ matrix.env }} . \
-              -f /root/task3/${{ matrix.values_file }} \
-              --namespace ${{ matrix.env }} --create-namespace \
-              --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/kostiv-app \
-              --set image.tag=${{ matrix.image_tag }} \
-              --set service.nodePort=${{ matrix.port }} \
-              --dry-run --debug
-
-            # 4. РЕАЛЬНЕ РОЗГОРТАННЯ
+            # 3. РЕАЛЬНЕ РОЗГОРТАННЯ
             echo "--- STARTING REAL DEPLOY FOR ${{ matrix.env }} ---"
             helm upgrade --install my-app-${{ matrix.env }} . \
               -f /root/task3/${{ matrix.values_file }} \
@@ -110,9 +112,18 @@ jobs:
               --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/kostiv-app \
               --set image.tag=${{ matrix.image_tag }} \
               --set service.nodePort=${{ matrix.port }} \
-              --wait
+              --wait --timeout 10m
 
-            # 5. Налаштування Port-forwarding для доступу ззовні
+            # 4. Налаштування Port-forwarding (тільки якщо деплой успішний)
             echo "--- SETTING UP PORT-FORWARDING FOR ${{ matrix.env }} ---"
             fuser -k ${{ matrix.port }}/tcp || true
             nohup kubectl port-forward --address 0.0.0.0 service/my-app-${{ matrix.env }} ${{ matrix.port }}:80 -n ${{ matrix.env }} > /root/pf-${{ matrix.env }}.log 2>&1 &
+            
+            # Даємо час розігнатися і перевіряємо чи процес вижив
+            sleep 5
+            if ps aux | grep -v grep | grep -q "port-forward.*${{ matrix.port }}:80"; then
+                echo "Port-forwarding is running successfully."
+            else
+                echo "WARNING: Port-forwarding failed to start. Check /root/pf-${{ matrix.env }}.log"
+                cat /root/pf-${{ matrix.env }}.log
+            fi
