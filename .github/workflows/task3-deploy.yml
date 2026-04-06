@@ -105,7 +105,12 @@ jobs:
             fi
             cd "$CHART_PATH"
 
-            # 3. РЕАЛЬНЕ РОЗГОРТАННЯ
+            # 3. ОЧИЩЕННЯ ПОПЕРЕДНІХ ЗЛАМАНИХ РЕЛІЗІВ
+            echo "--- CLEANING UP OLD RESOURCES FOR ${{ matrix.env }} ---"
+            helm uninstall my-app-${{ matrix.env }} -n ${{ matrix.env }} || true
+            kubectl delete all --all -n ${{ matrix.env }} || true
+
+            # 4. РЕАЛЬНЕ РОЗГОРТАННЯ
             echo "--- STARTING REAL DEPLOY FOR ${{ matrix.env }} ---"
             helm upgrade --install my-app-${{ matrix.env }} . \
               -f /root/task3/${{ matrix.values_file }} \
