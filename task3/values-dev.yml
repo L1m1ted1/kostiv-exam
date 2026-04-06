@@ -5,7 +5,7 @@ image:
   pullSecret: "default"
   repository: "will-be-overridden-by-set"
 service:
-  type: ClusterIP
+  type: NodePort
   port: 80
   nodePort: 8002
 replicaCount: 1

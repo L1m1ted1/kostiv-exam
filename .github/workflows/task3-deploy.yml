@@ -84,10 +84,10 @@ jobs:
             # 0. Додавання шляху до виконуваних файлів
             export PATH=$PATH:/usr/local/bin
 
-            # 1. Запуск Minikube (якщо впав)
+            # 1. Запуск Minikube (з розширеним діапазоном портів для NodePort)
             if ! minikube status | grep -q "Running"; then
-              echo "Starting Minikube..."
-              minikube start --driver=docker --force
+              echo "Starting Minikube with all ports allowed..."
+              minikube start --driver=docker --extra-config=apiserver.service-node-port-range=1-65535 --force
             fi
 
             # 2. Підготовка чарту
@@ -96,13 +96,16 @@ jobs:
             rm -rf "$REPO_DIR"
             git clone https://github.com/YulianSalo/devops-exam-pt2.git "$REPO_DIR"
             
-            # Перевірка чи каталог існує перед переходом
             CHART_PATH="$REPO_DIR/helm-charts-hello-world"
             if [ ! -d "$CHART_PATH" ]; then
                 echo "ERROR: Directory $CHART_PATH not found!"
                 ls -R devops-exam-pt2
                 exit 1
             fi
+            
+            # ПАТЧ: Додаємо підтримку nodePort в шаблон сервісу (бо в оригіналі її немає)
+            sed -i '/targetPort: 8000/a \      nodePort: {{ .Values.service.nodePort }}' "$CHART_PATH/templates/service.yaml"
+            
             cd "$CHART_PATH"
 
             # 3. ОЧИЩЕННЯ ПОПЕРЕДНІХ ЗЛАМАНИХ РЕЛІЗІВ
@@ -123,7 +126,7 @@ jobs:
             # 4. Налаштування Port-forwarding (тільки якщо деплой успішний)
             echo "--- SETTING UP PORT-FORWARDING FOR ${{ matrix.env }} ---"
             fuser -k ${{ matrix.port }}/tcp || true
-            nohup kubectl port-forward --address 0.0.0.0 service/my-app-${{ matrix.env }} ${{ matrix.port }}:80 -n ${{ matrix.env }} > /root/pf-${{ matrix.env }}.log 2>&1 &
+            nohup kubectl port-forward --address 0.0.0.0 service/django-hello-world-svc ${{ matrix.port }}:80 -n ${{ matrix.env }} > /root/pf-${{ matrix.env }}.log 2>&1 &
             
             # Даємо час розігнатися і перевіряємо чи процес вижив
             sleep 5
