@@ -10,7 +10,6 @@ on:
       target_ip:
         description: 'IP address of the target server (kostiv-node)'
         required: true
-        default: ''
 
 jobs:
   build-and-push:
