@@ -5,6 +5,8 @@ service:
   nodePort: 8003
 replicaCount: 2
 serviceAccount:
-  create: true
-  annotations: {}
-  name: ""
+  create: false
+ingress:
+  enabled: false
+autoscaling:
+  enabled: false
