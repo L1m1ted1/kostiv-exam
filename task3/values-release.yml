@@ -5,7 +5,7 @@ image:
   pullSecret: "default"
   repository: "will-be-overridden-by-set"
 service:
-  type: NodePort
+  type: ClusterIP
   port: 80
   nodePort: 8003
 replicaCount: 2
@@ -18,5 +18,5 @@ autoscaling:
 httpRoute:
   enabled: false
 django:
-  debug: "False"
+  debug: "True"
   allowedHosts: "*"
