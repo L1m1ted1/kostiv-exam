@@ -91,12 +91,13 @@ jobs:
             fi
 
             # 2. Підготовка чарту
-            echo "Preparing helm chart..."
-            rm -rf devops-exam-pt2
-            git clone https://github.com/YulianSalo/devops-exam-pt2.git
+            echo "Preparing helm chart for ${{ matrix.env }}..."
+            REPO_DIR="devops-exam-pt2-${{ matrix.env }}"
+            rm -rf "$REPO_DIR"
+            git clone https://github.com/YulianSalo/devops-exam-pt2.git "$REPO_DIR"
             
             # Перевірка чи каталог існує перед переходом
-            CHART_PATH="devops-exam-pt2/helm-charts-hello-world"
+            CHART_PATH="$REPO_DIR/helm-charts-hello-world"
             if [ ! -d "$CHART_PATH" ]; then
                 echo "ERROR: Directory $CHART_PATH not found!"
                 ls -R devops-exam-pt2
