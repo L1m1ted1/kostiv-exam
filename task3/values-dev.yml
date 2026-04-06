@@ -4,3 +4,7 @@ image:
 service:
   nodePort: 8002
 replicaCount: 1
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
